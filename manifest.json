@@ -1,0 +1,34 @@
+{
+  "id": "/",
+  "name": "Отсчёт — таймер до события",
+  "short_name": "Отсчёт",
+  "description": "Обратный отсчёт до любого события — ЕГЭ, каникулы, день рождения",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FAFAF7",
+  "theme_color": "#C0392B",
+  "lang": "ru",
+  "categories": ["education", "utilities", "lifestyle"],
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

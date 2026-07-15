@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Отсчёт — таймер до события</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#C0392B">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=PT+Serif:wght@400;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#FAFAF7;
+    --card:#FFFFFF;
+    --ink:#1B2430;
+    --ink-soft:#5B6472;
+    --muted:#9AA1AB;
+    --red:#C0392B;
+    --red-dim:#C0392B1a;
+    --grid:#E7E9ED;
+    --green:#3F7D5C;
+    --radius:7px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size:26px 26px;
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    padding:28px 16px 60px;
+  }
+  .app{ width:100%; max-width:460px; }
+
+  .app-header{ margin-bottom:22px; padding-left:2px; }
+  .app-header h1{
+    font-family:'PT Serif',serif; font-weight:700; font-size:2.35rem; margin:0;
+    letter-spacing:-0.01em; position:relative; display:inline-block;
+  }
+  .app-header h1::after{
+    content:""; position:absolute; left:2px; right:2px; bottom:2px; height:9px;
+    background:var(--red-dim); z-index:-1; transform:skewX(-6deg);
+  }
+  .app-header .tagline{ margin:6px 0 0; color:var(--ink-soft); font-size:0.92rem; }
+
+  .card{ background:var(--card); border:1px solid var(--grid); border-radius:var(--radius); padding:26px 22px 24px; }
+
+  .view{ display:none; }
+  .view.active{ display:block; }
+
+  .panel-title{ font-family:'PT Serif',serif; font-size:1.3rem; font-weight:700; margin:0 0 4px; }
+  .panel-sub{ color:var(--ink-soft); font-size:0.88rem; line-height:1.4; margin:0 0 20px; }
+  .field-label{ font-size:0.78rem; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin-bottom:8px; display:block; }
+  .loading-note{ text-align:center; color:var(--muted); font-size:0.88rem; padding:40px 10px; }
+
+  /* ---------- LIST ---------- */
+  .event-list{ margin-bottom:16px; }
+  .event-row{
+    display:flex; align-items:center; gap:12px;
+    padding:14px 4px; border-bottom:1px dashed var(--grid); cursor:pointer;
+  }
+  .event-row:last-child{ border-bottom:none; }
+  .event-main{ flex:1; min-width:0; }
+  .event-name{ font-weight:600; font-size:0.98rem; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .event-date{ font-family:'JetBrains Mono',monospace; font-size:0.8rem; color:var(--ink-soft); margin-top:2px; }
+  .event-badge{
+    font-family:'JetBrains Mono',monospace; font-weight:700; font-size:0.85rem;
+    padding:5px 10px; border-radius:20px; flex-shrink:0; color:var(--red); background:var(--red-dim);
+    white-space:nowrap;
+  }
+  .event-badge.today{ color:var(--green); background:#3F7D5C1a; }
+  .chevron{ color:var(--muted); font-size:1.1rem; flex-shrink:0; }
+  .empty-note{ color:var(--muted); font-size:0.9rem; padding:20px 4px; text-align:center; font-style:italic; }
+
+  .add-btn{
+    width:100%; padding:13px; background:var(--ink); color:var(--paper); border:none;
+    border-radius:var(--radius); font-weight:600; font-size:0.95rem; cursor:pointer; transition:background .15s ease;
+  }
+  .add-btn:hover{ background:var(--red); }
+
+  /* ---------- FORM ---------- */
+  .text-input, .date-input{
+    width:100%; font-family:'Inter',sans-serif; font-size:0.95rem; padding:11px 12px;
+    border:1.5px solid var(--grid); border-radius:var(--radius); background:var(--paper); color:var(--ink);
+    margin-bottom:18px;
+  }
+  .date-input{ font-family:'JetBrains Mono',monospace; }
+  .text-input:focus, .date-input:focus{ outline:none; border-color:var(--red); }
+
+  .preset-chips{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:20px; }
+  .preset-chip{
+    padding:8px 14px; border:1.5px solid var(--grid); border-radius:20px; background:var(--paper);
+    font-size:0.85rem; color:var(--ink-soft); cursor:pointer; transition:border-color .15s ease, color .15s ease;
+  }
+  .preset-chip:hover{ border-color:var(--red); color:var(--red); }
+
+  .save-btn{
+    width:100%; padding:13px; background:var(--ink); color:var(--paper); border:none;
+    border-radius:var(--radius); font-weight:600; font-size:0.95rem; cursor:pointer; transition:background .15s ease;
+  }
+  .save-btn:hover{ background:var(--red); }
+  .link-btn{ display:block; width:100%; text-align:center; background:none; border:none; color:var(--muted);
+    font-size:0.82rem; margin-top:14px; cursor:pointer; text-decoration:underline; }
+  .link-btn:hover{ color:var(--red); }
+
+  .back-btn{
+    display:inline-flex; align-items:center; gap:8px;
+    padding:9px 16px 9px 12px; border-radius:24px; margin-bottom:14px;
+    border:1.5px solid var(--grid); background:var(--paper);
+    color:var(--ink); font-weight:700; font-size:0.9rem; cursor:pointer;
+  }
+  .back-btn:hover{ border-color:var(--red); color:var(--red); }
+  .back-btn .arrow{ font-size:1.15rem; line-height:1; }
+
+  .secondary-actions{ display:flex; flex-direction:column; gap:10px; margin-top:18px; }
+  .secondary-btn{
+    width:100%; padding:13px; border-radius:var(--radius); font-weight:600; font-size:0.92rem;
+    cursor:pointer; border:1.5px solid var(--grid); background:var(--paper); color:var(--ink);
+  }
+  .secondary-btn:hover{ border-color:var(--ink); }
+  .secondary-btn.danger{ color:var(--red); }
+  .secondary-btn.danger:hover{ border-color:var(--red); background:var(--red-dim); }
+  .secondary-btn.danger.confirming{ border-color:var(--red); background:var(--red); color:var(--paper); }
+
+  footer{ text-align:center; color:var(--muted); font-size:0.76rem; margin-top:20px; padding:0 12px; line-height:1.5; }
+
+  /* ---------- STORY VIEW (full takeover, dark & shareable) ---------- */
+  .story-overlay{
+    display:none;
+    position:fixed; inset:0; z-index:100;
+    background:radial-gradient(circle at 50% 20%, #2A3444 0%, #1B2430 60%, #141B25 100%);
+    overflow:hidden;
+  }
+  .story-overlay.active{ display:block; }
+
+  .story-grid{
+    position:absolute; inset:0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
+    background-size:30px 30px;
+  }
+
+  .particle{
+    position:absolute;
+    width:5px; height:5px;
+    border-radius:50%;
+    background:var(--red);
+    opacity:0.55;
+    bottom:-10px;
+    animation:drift linear infinite;
+  }
+  @keyframes drift{
+    0%{ transform:translateY(0) scale(1); opacity:0; }
+    10%{ opacity:0.6; }
+    90%{ opacity:0.4; }
+    100%{ transform:translateY(-110vh) scale(0.6); opacity:0; }
+  }
+
+  .story-content{
+    position:relative; z-index:2;
+    height:100%;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    text-align:center;
+    padding:32px 24px;
+  }
+
+  .story-back{
+    position:absolute; top:24px; left:20px; z-index:5;
+    width:42px; height:42px; border-radius:50%;
+    border:1.5px solid rgba(255,255,255,0.25); background:rgba(255,255,255,0.06);
+    color:var(--paper); font-size:1.1rem; cursor:pointer;
+  }
+  .story-back:hover{ border-color:var(--red); }
+
+  .story-edit{
+    position:absolute; top:24px; right:20px; z-index:5;
+    width:42px; height:42px; border-radius:50%;
+    border:1.5px solid rgba(255,255,255,0.25); background:rgba(255,255,255,0.06);
+    color:var(--paper); font-size:1rem; cursor:pointer;
+  }
+  .story-edit:hover{ border-color:var(--red); }
+
+  .story-delete-btn{
+    position:absolute; top:24px; right:72px; z-index:5;
+    width:42px; height:42px; border-radius:50%;
+    border:1.5px solid var(--red); background:rgba(192,57,43,0.18);
+    color:var(--red); cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    transition:background .15s ease, transform .1s ease;
+  }
+  .story-delete-btn:hover{ background:rgba(192,57,43,0.32); }
+  .story-delete-btn:active{ transform:scale(0.92); }
+  .story-delete-btn svg{ width:19px; height:19px; }
+  .story-delete-btn.confirming{
+    background:var(--red); color:var(--paper);
+    animation:pulse-warn 0.9s ease-in-out infinite;
+  }
+  @keyframes pulse-warn{
+    0%,100%{ box-shadow:0 0 0 0 rgba(192,57,43,0.5); }
+    50%{ box-shadow:0 0 0 7px rgba(192,57,43,0); }
+  }
+
+  .toast{
+    position:fixed; left:50%; bottom:30px; transform:translateX(-50%) translateY(20px);
+    background:rgba(20,27,37,0.95); color:var(--paper); padding:12px 20px; border-radius:24px;
+    font-size:0.85rem; font-weight:600; opacity:0; pointer-events:none;
+    transition:opacity .25s ease, transform .25s ease; z-index:200; max-width:85%; text-align:center;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  .story-number{
+    font-family:'PT Serif',serif; font-weight:700; color:var(--paper);
+    font-size:5.2rem; line-height:1; text-shadow:0 0 40px rgba(192,57,43,0.55);
+    margin-bottom:6px;
+  }
+  .story-unit{
+    font-size:1rem; color:var(--red); text-transform:uppercase; letter-spacing:.08em; font-weight:700;
+    margin-bottom:28px;
+  }
+  .story-name{
+    font-family:'Inter',sans-serif; font-weight:700; font-size:1.4rem; color:var(--paper);
+    margin-bottom:8px; max-width:320px;
+  }
+  .story-date{
+    font-family:'JetBrains Mono',monospace; font-size:0.88rem; color:rgba(255,255,255,0.5);
+  }
+
+  .story-watermark{
+    position:absolute; bottom:26px; left:0; right:0; z-index:3;
+    text-align:center; font-family:'PT Serif',serif; font-weight:700;
+    font-size:0.95rem; color:rgba(255,255,255,0.45); letter-spacing:.02em;
+  }
+  .story-watermark span{ color:var(--red); }
+
+  .story-hint{
+    position:absolute; bottom:56px; left:0; right:0; z-index:3;
+    text-align:center; font-size:0.78rem; color:rgba(255,255,255,0.35);
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <div class="app-header">
+    <h1>Отсчёт</h1>
+    <p class="tagline">обратный отсчёт до твоего события</p>
+  </div>
+
+  <div class="card">
+
+    <div class="view active" id="view-loading">
+      <p class="loading-note">Загружаем твои отсчёты…</p>
+    </div>
+
+    <!-- LIST -->
+    <div class="view" id="view-list">
+      <h2 class="panel-title">Мои отсчёты</h2>
+      <p class="panel-sub">Добавь любое событие — экзамен, каникулы, день рождения — и следи, сколько до него осталось.</p>
+
+      <div class="event-list" id="event-list"></div>
+
+      <button class="add-btn" id="add-event-btn">+ Добавить отсчёт</button>
+    </div>
+
+    <!-- ADD / EDIT -->
+    <div class="view" id="view-add">
+      <h2 class="panel-title" id="add-title">Новый отсчёт</h2>
+      <p class="panel-sub">Название и дата — и готово.</p>
+
+      <span class="field-label">Название события</span>
+      <input type="text" class="text-input" id="event-name-input" placeholder="Например, Лето">
+
+      <div class="preset-chips">
+        <button class="preset-chip" data-name="🌴 Лето" data-preset="summer">🌴 Лето</button>
+        <button class="preset-chip" data-name="🎄 Новый год" data-preset="newyear">🎄 Новый год</button>
+        <button class="preset-chip" data-name="📓 1 сентября" data-preset="september">📓 1 сентября</button>
+        <button class="preset-chip" data-name="📚 ЕГЭ">📚 ЕГЭ</button>
+        <button class="preset-chip" data-name="🎓 Выпускной">🎓 Выпускной</button>
+        <button class="preset-chip" data-name="🎂 День рождения">🎂 День рождения</button>
+      </div>
+
+      <span class="field-label">Дата</span>
+      <input type="date" class="date-input" id="event-date-input">
+
+      <button class="save-btn" id="save-event-btn">Сохранить</button>
+      <button class="link-btn" id="cancel-add-btn">Отмена</button>
+    </div>
+
+  </div>
+
+  <footer>Все отсчёты хранятся только на этом устройстве.</footer>
+</div>
+
+<!-- STORY VIEW -->
+<div class="story-overlay" id="story-overlay">
+  <div class="story-grid"></div>
+  <div class="particles" id="particles"></div>
+  <button class="story-back" id="story-back-btn">←</button>
+  <button class="story-delete-btn" id="story-delete-btn" title="Удалить">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="3 6 5 6 21 6"></polyline>
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+      <path d="M10 11v6"></path>
+      <path d="M14 11v6"></path>
+      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path>
+    </svg>
+  </button>
+  <button class="story-edit" id="story-edit-btn">✎</button>
+  <div class="story-content">
+    <div class="story-number" id="story-number">0</div>
+    <div class="story-unit" id="story-unit">дней осталось</div>
+    <div class="story-name" id="story-name">Событие</div>
+    <div class="story-date" id="story-date">1 января 2027</div>
+  </div>
+  <div class="story-watermark">сделано в приложении <span>Отсчёт</span></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // Локальное хранилище на устройстве (работает на реальном сайте/APK;
+  // в превью Claude вместо этого используется песочница window.storage).
+  const storage = {
+    async get(key){
+      try{
+        const v = localStorage.getItem(key);
+        return v === null ? null : { key, value: v };
+      } catch(e){ return null; }
+    },
+    async set(key, value){
+      try{
+        localStorage.setItem(key, value);
+        return { key, value };
+      } catch(e){ throw e; }
+    }
+  };
+
+  let events = []; // {id, name, date}
+  let idCounter = 0;
+  let currentEventId = null;
+  let editingId = null;
+
+  const MONTHS = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+
+  const views = {
+    loading: document.getElementById('view-loading'),
+    list: document.getElementById('view-list'),
+    add: document.getElementById('view-add'),
+  };
+  function showView(name){
+    Object.values(views).forEach(v=>v.classList.remove('active'));
+    views[name].classList.add('active');
+    document.getElementById('story-overlay').classList.remove('active');
+  }
+
+  async function loadState(){
+    try{
+      const res = await storage.get('otcheot_events');
+      if(res && res.value){
+        const state = JSON.parse(res.value);
+        events = state.events || [];
+        idCounter = state.idCounter || events.length;
+      }
+    } catch(e){ /* first run */ }
+    showView('list');
+    renderList();
+  }
+
+  async function persist(){
+    try{
+      await storage.set('otcheot_events', JSON.stringify({ events, idCounter }));
+    } catch(e){ console.error('Storage error', e); }
+  }
+
+  function daysUntil(dateStr){
+    const target = new Date(dateStr + 'T00:00:00');
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return Math.round((target - today) / 86400000);
+  }
+
+  function pluralDays(n){
+    n = Math.abs(n);
+    const mod10 = n%10, mod100 = n%100;
+    if(mod10===1 && mod100!==11) return 'день';
+    if([2,3,4].includes(mod10) && ![12,13,14].includes(mod100)) return 'дня';
+    return 'дней';
+  }
+
+  function fmtDateHuman(dateStr){
+    const d = new Date(dateStr + 'T00:00:00');
+    return d.getDate() + ' ' + MONTHS[d.getMonth()] + ' ' + d.getFullYear();
+  }
+
+  // ---------- LIST ----------
+  function renderList(){
+    const wrap = document.getElementById('event-list');
+    wrap.innerHTML = '';
+    if(events.length === 0){
+      wrap.innerHTML = '<p class="empty-note">Пока нет отсчётов — добавь первый.</p>';
+      return;
+    }
+    const sorted = [...events].sort((a,b)=> daysUntil(a.date) - daysUntil(b.date));
+    sorted.forEach(ev=>{
+      const days = daysUntil(ev.date);
+      const row = document.createElement('div');
+      row.className = 'event-row';
+      let badgeText, badgeClass = '';
+      if(days === 0){ badgeText = 'Сегодня'; badgeClass = 'today'; }
+      else if(days < 0){ badgeText = 'Прошло'; }
+      else { badgeText = days + ' ' + pluralDays(days); }
+      row.innerHTML = `
+        <div class="event-main">
+          <div class="event-name">${ev.name}</div>
+          <div class="event-date">${fmtDateHuman(ev.date)}</div>
+        </div>
+        <span class="event-badge ${badgeClass}">${badgeText}</span>
+        <span class="chevron">›</span>
+      `;
+      row.addEventListener('click', ()=>{ openStory(ev.id); });
+      wrap.appendChild(row);
+    });
+  }
+
+  document.getElementById('add-event-btn').addEventListener('click', ()=>{
+    editingId = null;
+    document.getElementById('add-title').textContent = 'Новый отсчёт';
+    document.getElementById('event-name-input').value = '';
+    document.getElementById('event-date-input').value = '';
+    showView('add');
+  });
+
+  document.getElementById('cancel-add-btn').addEventListener('click', ()=>{
+    showView('list');
+    renderList();
+  });
+
+  function nextOccurrence(month, day){
+    // month: 1-12
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    let year = now.getFullYear();
+    let candidate = new Date(year, month - 1, day);
+    if(candidate < today){ year += 1; candidate = new Date(year, month - 1, day); }
+    const mm = String(month).padStart(2,'0');
+    const dd = String(day).padStart(2,'0');
+    return year + '-' + mm + '-' + dd;
+  }
+
+  const PRESET_DATES = {
+    summer: () => nextOccurrence(6, 1),
+    newyear: () => nextOccurrence(1, 1),
+    september: () => nextOccurrence(9, 1),
+  };
+
+  document.querySelectorAll('.preset-chip').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      document.getElementById('event-name-input').value = chip.dataset.name;
+      const presetKey = chip.dataset.preset;
+      if(presetKey && PRESET_DATES[presetKey]){
+        document.getElementById('event-date-input').value = PRESET_DATES[presetKey]();
+      }
+    });
+  });
+
+  document.getElementById('save-event-btn').addEventListener('click', ()=>{
+    const name = document.getElementById('event-name-input').value.trim();
+    const date = document.getElementById('event-date-input').value;
+    if(!name){ document.getElementById('event-name-input').focus(); return; }
+    if(!date){ document.getElementById('event-date-input').focus(); return; }
+
+    if(editingId !== null){
+      const ev = events.find(e=>e.id === editingId);
+      ev.name = name;
+      ev.date = date;
+    } else {
+      events.push({ id: idCounter++, name, date });
+    }
+    persist();
+    showView('list');
+    renderList();
+  });
+
+  // ---------- STORY VIEW ----------
+  function openStory(id){
+    currentEventId = id;
+    resetDeleteConfirm();
+    const ev = events.find(e=>e.id === id);
+    if(!ev) return;
+
+    const days = daysUntil(ev.date);
+    const numberEl = document.getElementById('story-number');
+    const unitEl = document.getElementById('story-unit');
+
+    if(days > 0){
+      numberEl.textContent = days;
+      const noun = pluralDays(days);
+      const verb = noun === 'день' ? 'остался' : 'осталось';
+      unitEl.textContent = noun + ' ' + verb;
+    } else if(days === 0){
+      numberEl.textContent = '🎉';
+      unitEl.textContent = 'сегодня этот день!';
+    } else {
+      numberEl.textContent = Math.abs(days);
+      unitEl.textContent = pluralDays(days) + ' назад';
+    }
+
+    document.getElementById('story-name').textContent = ev.name;
+    document.getElementById('story-date').textContent = fmtDateHuman(ev.date);
+
+    spawnParticles();
+    document.getElementById('story-overlay').classList.add('active');
+  }
+
+  function spawnParticles(){
+    const wrap = document.getElementById('particles');
+    wrap.innerHTML = '';
+    const count = 16;
+    for(let i=0;i<count;i++){
+      const p = document.createElement('div');
+      p.className = 'particle';
+      p.style.left = Math.random()*100 + '%';
+      const duration = 6 + Math.random()*8;
+      p.style.animationDuration = duration + 's';
+      p.style.animationDelay = (Math.random()*duration) + 's';
+      p.style.opacity = 0.3 + Math.random()*0.4;
+      wrap.appendChild(p);
+    }
+  }
+
+  document.getElementById('story-back-btn').addEventListener('click', ()=>{
+    showView('list');
+    renderList();
+  });
+
+  document.getElementById('story-edit-btn').addEventListener('click', ()=>{
+    const ev = events.find(e=>e.id === currentEventId);
+    if(!ev) return;
+    editingId = ev.id;
+    document.getElementById('add-title').textContent = 'Изменить отсчёт';
+    document.getElementById('event-name-input').value = ev.name;
+    document.getElementById('event-date-input').value = ev.date;
+    showView('add');
+  });
+
+  let toastTimer = null;
+  function showToast(msg){
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=>{ el.classList.remove('show'); }, 2200);
+  }
+
+  let deleteConfirming = false;
+  let deleteConfirmTimer = null;
+
+  function resetDeleteConfirm(){
+    deleteConfirming = false;
+    clearTimeout(deleteConfirmTimer);
+    document.getElementById('story-delete-btn').classList.remove('confirming');
+  }
+
+  document.getElementById('story-delete-btn').addEventListener('click', (e)=>{
+    const btn = e.currentTarget;
+    if(!deleteConfirming){
+      deleteConfirming = true;
+      btn.classList.add('confirming');
+      showToast('Нажми ещё раз, чтобы удалить');
+      deleteConfirmTimer = setTimeout(()=>{ resetDeleteConfirm(); }, 3500);
+      return;
+    }
+    clearTimeout(deleteConfirmTimer);
+    events = events.filter(e=>e.id !== currentEventId);
+    persist();
+    resetDeleteConfirm();
+    showView('list');
+    renderList();
+    showToast('Отсчёт удалён');
+  });
+
+  loadState();
+
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', ()=>{
+      navigator.serviceWorker.register('sw.js').catch(()=>{});
+    });
+  }
+</script>
+
+</body>
+</html>
